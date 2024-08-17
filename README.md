@@ -1,8 +1,8 @@
-# React + Vite
+# Woila
+- A simple utility to change your wallpaper's colour theme to popular ones such as catpuccin, dracula, tokyonight, nord, gruvbox in a single click.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## How it works?
+- It iterates over each pixel of the image and find the closest colour from the selected theme using 3d distance formula where x,y,z co-ordinates represents the r,g,b value of each pixel
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+> [!NOTE]  
+> May not work with complex wallpapers, having several details and colours but should work fine for normal wallpapers
