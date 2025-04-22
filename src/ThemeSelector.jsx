@@ -1,25 +1,23 @@
-import React from "react";
+/* eslint-disable react/prop-types */
 
 const ThemeSelector = ({ themes, onThemeChange }) => {
-  const handleThemeChange = (themeName) => {
-    onThemeChange(themes[themeName]);
-  };
-
   return (
-    <select
-      onChange={(e) => handleThemeChange(e.target.value)}
-      className="select select-ghost w-full max-w-xs"
-    >
-      <option disabled selected>
-        Select a theme!!!!
-      </option>
-
-      {Object.keys(themes).map((themeName) => (
-        <option key={themeName} value={themeName}>
-          {themeName}
+    <div className="form-control w-full max-w-xs">
+      <select
+        onChange={(e) => onThemeChange(themes[e.target.value])}
+        className="select select-bordered select-primary"
+        defaultValue=""
+      >
+        <option disabled value="">
+          Select a theme
         </option>
-      ))}
-    </select>
+        {Object.keys(themes).map((themeName) => (
+          <option key={themeName} value={themeName}>
+            {themeName}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 };
 

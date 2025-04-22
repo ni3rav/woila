@@ -1,15 +1,77 @@
-import React, { useRef, useEffect } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react/prop-types */
+
+import { useRef, useEffect } from "react";
+
+const createWorker = () => {
+  const workerCode = () => {
+    self.onmessage = (e) => {
+      const { pixels, theme, width, height } = e.data;
+      const newPixels = new Uint8ClampedArray(pixels);
+
+      const themeColors = [];
+      for (let i = 0; i < theme.length; i += 3) {
+        themeColors.push({
+          r: theme[i],
+          g: theme[i + 1],
+          b: theme[i + 2],
+        });
+      }
+
+      const colorDistance = (r1, g1, b1, color) => {
+        const dr = 0.3 * (r1 - color.r);
+        const dg = 0.59 * (g1 - color.g);
+        const db = 0.11 * (b1 - color.b);
+        return dr * dr + dg * dg + db * db;
+      };
+
+      for (let i = 0; i < newPixels.length; i += 4) {
+        let minDist = Infinity;
+        let bestColor = themeColors[0];
+        const r = newPixels[i];
+        const g = newPixels[i + 1];
+        const b = newPixels[i + 2];
+
+        for (const color of themeColors) {
+          const dist = colorDistance(r, g, b, color);
+          if (dist < minDist) {
+            minDist = dist;
+            bestColor = color;
+          }
+        }
+
+        newPixels[i] = bestColor.r;
+        newPixels[i + 1] = bestColor.g;
+        newPixels[i + 2] = bestColor.b;
+      }
+
+      self.postMessage({ newPixels, width, height }, [newPixels.buffer]);
+    };
+  };
+
+  const code = workerCode.toString();
+  const blob = new Blob([`(${code})()`], { type: "application/javascript" });
+  return new Worker(URL.createObjectURL(blob));
+};
 
 const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
   const canvasRef = useRef(null);
+  const workerRef = useRef(null);
 
   useEffect(() => {
-    if (image && theme.length > 0) {
+    workerRef.current = createWorker();
+    return () => workerRef.current.terminate();
+  }, []);
+
+  useEffect(() => {
+    if (image && theme?.length >= 3) {
       convertImage();
     }
   }, [image, theme]);
 
   const handleImage = (file) => {
+    if (!file?.type?.startsWith("image/")) return;
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -27,37 +89,29 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
   };
 
   const convertImage = () => {
+    if (!theme || theme.length < 3) return;
+
     setIsLoading(true);
-    setTimeout(() => {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const pixels = imageData.data;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      for (let i = 0; i < pixels.length; i += 4) {
-        let minimum = 0;
-        let lens = [];
+    workerRef.current.postMessage(
+      {
+        pixels: imageData.data.buffer,
+        theme: [...theme],
+        width: canvas.width,
+        height: canvas.height,
+      },
+      [imageData.data.buffer]
+    );
 
-        for (let j = 0; j < theme.length; j += 3) {
-          lens.push(
-            Math.sqrt(
-              Math.pow(pixels[i] - theme[j], 2) +
-                Math.pow(pixels[i + 1] - theme[j + 1], 2) +
-                Math.pow(pixels[i + 2] - theme[j + 2], 2)
-            )
-          );
-        }
-
-        minimum = lens.indexOf(Math.min(...lens));
-
-        for (let k = 0; k < 3; k++) {
-          pixels[i + k] = theme[minimum * 3 + k];
-        }
-      }
-
-      ctx.putImageData(imageData, 0, 0);
+    workerRef.current.onmessage = (e) => {
+      const { newPixels, width, height } = e.data;
+      const newImageData = new ImageData(newPixels, width, height);
+      ctx.putImageData(newImageData, 0, 0);
       setIsLoading(false);
-    }, 0);
+    };
   };
 
   const handleDrop = (e) => {
@@ -74,7 +128,7 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
       onPaste={handlePaste}
-      className="flex flex-col flex-wrap justify-center items-center gap-2"
+      className="flex flex-col items-center gap-4 w-full"
     >
       <input
         type="file"
@@ -82,17 +136,21 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
         accept="image/*"
         className="file-input file-input-bordered file-input-accent w-full max-w-xs"
       />
-      <canvas ref={canvasRef} className="md:max-w-[960px] md:max-h-[540px] max-w-[320px] max-h[270px]" />
+      <canvas
+        ref={canvasRef}
+        className="border rounded-lg shadow-md max-w-full h-auto"
+        style={{ maxHeight: "70vh" }}
+      />
       <button
         onClick={() => {
           const link = document.createElement("a");
-          link.download = "wallpaper-theme-converter.png";
+          link.download = "palette-image.png";
           link.href = canvasRef.current.toDataURL("image/png");
           link.click();
         }}
-        className="btn btn-active btn-primary"
+        className="btn btn-primary gap-2"
       >
-        Download
+        Download Image
       </button>
     </div>
   );
