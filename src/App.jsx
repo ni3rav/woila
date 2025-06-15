@@ -14,8 +14,6 @@ const App = () => {
       .then((res) => res.json())
       .then((data) => {
         setListOfThemes(data);
-        const defaultTheme = Object.values(data)[0];
-        setTheme(defaultTheme);
       });
   }, []);
 

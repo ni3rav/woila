@@ -88,7 +88,7 @@ const createWorker = () => {
           }
         }
 
-        const luminanceRatio = 0.3; 
+        const luminanceRatio = 0.3;
         newPixels[i] = Math.round(
           bestColor.r * (1 - luminanceRatio) + r * luminanceRatio
         );
@@ -112,6 +112,7 @@ const createWorker = () => {
 const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
   const canvasRef = useRef(null);
   const workerRef = useRef(null);
+  const originalImageDataRef = useRef(null);
 
   useEffect(() => {
     workerRef.current = createWorker();
@@ -119,12 +120,18 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
   }, []);
 
   useEffect(() => {
-    if (image && theme?.length >= 3) {
-      convertImage();
+    if (image) {
+      loadImage(image);
     }
-  }, [image, theme]);
+  }, [image]);
 
-  const handleImage = (file) => {
+  useEffect(() => {
+    if (theme?.length >= 3 && originalImageDataRef.current) {
+      applyTheme();
+    }
+  }, [theme]);
+
+  const loadImage = (file) => {
     if (!file?.type?.startsWith("image/")) return;
 
     const reader = new FileReader();
@@ -136,6 +143,13 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0);
+
+        originalImageDataRef.current = ctx.getImageData(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
         onImageChange(file);
       };
       img.src = event.target.result;
@@ -143,12 +157,15 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
     reader.readAsDataURL(file);
   };
 
-  const convertImage = () => {
-    if (!theme || theme.length < 3) return;
+  const applyTheme = () => {
+    if (!theme || theme.length < 3 || !originalImageDataRef.current) return;
 
     setIsLoading(true);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+
+    ctx.putImageData(originalImageDataRef.current, 0, 0);
+
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
     workerRef.current.postMessage(
@@ -176,6 +193,10 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
 
   const handlePaste = (e) => {
     handleImage(e.clipboardData.files[0]);
+  };
+
+  const handleImage = (file) => {
+    loadImage(file);
   };
 
   return (
