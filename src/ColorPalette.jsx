@@ -1,12 +1,14 @@
 /* eslint-disable react/prop-types */
 
 const ColorPalette = ({ theme }) => {
-  if (!theme || theme.length % 3 !== 0) return null;
+  if (!theme || theme.length === 0) return null;
 
   return (
     <div className="flex flex-wrap justify-center gap-2 p-4 bg-base-200 rounded-box">
-      {Array.from({ length: theme.length / 3 }, (_, i) => {
-        const [r, g, b] = theme.slice(i * 3, i * 3 + 3);
+      {theme.map((hexColor, i) => {
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const g = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
         return (
           <div
             key={i}

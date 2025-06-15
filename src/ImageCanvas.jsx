@@ -60,14 +60,14 @@ const createWorker = () => {
 
       const themeColors = [];
       const themeLab = [];
-      for (let i = 0; i < theme.length; i += 3) {
-        const rgb = {
-          r: theme[i],
-          g: theme[i + 1],
-          b: theme[i + 2],
-        };
+      // Convert hex theme colors to RGB and then to LAB
+      for (const hexColor of theme) {
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const g = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
+        const rgb = { r, g, b };
         themeColors.push(rgb);
-        themeLab.push(rgbToLab(rgb.r, rgb.g, rgb.b));
+        themeLab.push(rgbToLab(r, g, b));
       }
 
       for (let i = 0; i < newPixels.length; i += 4) {
