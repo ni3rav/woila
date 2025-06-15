@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ImageCanvas from "./ImageCanvas";
 import ColorPalette from "./ColorPalette";
 import ThemeSelector from "./ThemeSelector";
@@ -6,16 +6,7 @@ import ThemeSelector from "./ThemeSelector";
 const App = () => {
   const [theme, setTheme] = useState([]);
   const [image, setImage] = useState(null);
-  const [listOfThemes, setListOfThemes] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    fetch("/assets/themes.json")
-      .then((res) => res.json())
-      .then((data) => {
-        setListOfThemes(data);
-      });
-  }, []);
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-between px-4 py-8">
@@ -31,7 +22,7 @@ const App = () => {
           setIsLoading={setIsLoading}
         />
         <ColorPalette theme={theme} />
-        <ThemeSelector themes={listOfThemes} onThemeChange={setTheme} />
+        <ThemeSelector onThemeChange={setTheme} />
       </div>
 
       <footer className="w-full max-w-4xl mt-8 text-center">
