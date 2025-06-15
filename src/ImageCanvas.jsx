@@ -5,44 +5,99 @@ import { useRef, useEffect } from "react";
 
 const createWorker = () => {
   const workerCode = () => {
+    const rgbToXyz = (r, g, b) => {
+      r = r / 255;
+      g = g / 255;
+      b = b / 255;
+
+      r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+      g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+      b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+      r *= 100;
+      g *= 100;
+      b *= 100;
+
+      const x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375;
+      const y = r * 0.2126729 + g * 0.7151522 + b * 0.072175;
+      const z = r * 0.0193339 + g * 0.119192 + b * 0.9503041;
+
+      return [x, y, z];
+    };
+
+    const xyzToLab = (x, y, z) => {
+      x = x / 95.047;
+      y = y / 100;
+      z = z / 108.883;
+
+      x = x > 0.008856 ? Math.pow(x, 1 / 3) : 7.787 * x + 16 / 116;
+      y = y > 0.008856 ? Math.pow(y, 1 / 3) : 7.787 * y + 16 / 116;
+      z = z > 0.008856 ? Math.pow(z, 1 / 3) : 7.787 * z + 16 / 116;
+
+      const l = 116 * y - 16;
+      const a = 500 * (x - y);
+      const b = 200 * (y - z);
+
+      return [l, a, b];
+    };
+
+    const rgbToLab = (r, g, b) => {
+      const [x, y, z] = rgbToXyz(r, g, b);
+      return xyzToLab(x, y, z);
+    };
+
+    const deltaE = (lab1, lab2) => {
+      const deltaL = lab1[0] - lab2[0];
+      const deltaA = lab1[1] - lab2[1];
+      const deltaB = lab1[2] - lab2[2];
+
+      return Math.sqrt(deltaL * deltaL + deltaA * deltaA + deltaB * deltaB);
+    };
+
     self.onmessage = (e) => {
       const { pixels, theme, width, height } = e.data;
       const newPixels = new Uint8ClampedArray(pixels);
 
       const themeColors = [];
+      const themeLab = [];
       for (let i = 0; i < theme.length; i += 3) {
-        themeColors.push({
+        const rgb = {
           r: theme[i],
           g: theme[i + 1],
           b: theme[i + 2],
-        });
+        };
+        themeColors.push(rgb);
+        themeLab.push(rgbToLab(rgb.r, rgb.g, rgb.b));
       }
 
-      const colorDistance = (r1, g1, b1, color) => {
-        const dr = 0.3 * (r1 - color.r);
-        const dg = 0.59 * (g1 - color.g);
-        const db = 0.11 * (b1 - color.b);
-        return dr * dr + dg * dg + db * db;
-      };
-
       for (let i = 0; i < newPixels.length; i += 4) {
-        let minDist = Infinity;
-        let bestColor = themeColors[0];
         const r = newPixels[i];
         const g = newPixels[i + 1];
         const b = newPixels[i + 2];
 
-        for (const color of themeColors) {
-          const dist = colorDistance(r, g, b, color);
+        const pixelLab = rgbToLab(r, g, b);
+
+        let minDist = Infinity;
+        let bestColor = themeColors[0];
+
+        for (let j = 0; j < themeColors.length; j++) {
+          const dist = deltaE(pixelLab, themeLab[j]);
           if (dist < minDist) {
             minDist = dist;
-            bestColor = color;
+            bestColor = themeColors[j];
           }
         }
 
-        newPixels[i] = bestColor.r;
-        newPixels[i + 1] = bestColor.g;
-        newPixels[i + 2] = bestColor.b;
+        const luminanceRatio = 0.3; 
+        newPixels[i] = Math.round(
+          bestColor.r * (1 - luminanceRatio) + r * luminanceRatio
+        );
+        newPixels[i + 1] = Math.round(
+          bestColor.g * (1 - luminanceRatio) + g * luminanceRatio
+        );
+        newPixels[i + 2] = Math.round(
+          bestColor.b * (1 - luminanceRatio) + b * luminanceRatio
+        );
       }
 
       self.postMessage({ newPixels, width, height }, [newPixels.buffer]);
@@ -144,7 +199,7 @@ const ImageCanvas = ({ image, theme, onImageChange, setIsLoading }) => {
       <button
         onClick={() => {
           const link = document.createElement("a");
-          link.download = "palette-image.png";
+          link.download = "woila-converted-.png";
           link.href = canvasRef.current.toDataURL("image/png");
           link.click();
         }}
